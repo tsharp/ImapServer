@@ -1,23 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace ImapServer.Protocol
 {
     public abstract class ImapCommand
     {
         Regex rex = null;
-        
-        public ImapCommand(string command)
+
+        public ImapCommand(string command, int parameters = 0)
         {
-            rex = new Regex($"^([a-z]|[0-9])+ {command}$", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            var parametersRex = new StringBuilder();
+
+            for (int i = 0; i < parameters; i++)
+            {
+                parametersRex.Append(" ([^\\s]+)");
+            }
+
+            rex = new Regex($"^([a-zA-Z0-9]+) {command}{parametersRex}$", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
         }
 
-        public bool CanParse(string command)
+        public virtual bool CanParse(string command)
         {
             return rex.IsMatch(command);
         }
@@ -26,7 +28,7 @@ namespace ImapServer.Protocol
 
         public static void Send(ImapSessionContext context, string tag, string data)
         {
-            context.WriteLine($"{tag} {data}");
+            context.WriteLine($"{tag} {data}".Trim());
         }
     }
 }

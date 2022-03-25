@@ -1,26 +1,25 @@
-﻿using System;
+﻿using ImapServer.Protocol;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ImapServer
 {
     public class ImapCommandParser
     {
-        private List<Commands.ImapCommand> _commands = new List<Commands.ImapCommand>();
+        private List<ImapCommand> commands = new List<ImapCommand>();
 
         public ImapCommandParser()
         {
-            _commands.Add(new Commands.CapabilityCommand());
-            _commands.Add(new Commands.LoginCommand());
-            _commands.Add(new Commands.ListCommand());
-            _commands.Add(new Commands.StartTlsCommand());
+            commands.Add(new AuthenticateCommand());
+            commands.Add(new CapabilityCommand());
+            commands.Add(new LoginCommand());
+            commands.Add(new ListCommand());
+            commands.Add(new StartTlsCommand());
         }
 
-        public Commands.ImapCommand Parse(string command)
+        public ImapCommand Parse(string command)
         {
-            return _commands.Where(c => c.Matches(command)).FirstOrDefault();
+            return commands.Where(c => c.CanParse(command)).FirstOrDefault();
         }
     }
 }

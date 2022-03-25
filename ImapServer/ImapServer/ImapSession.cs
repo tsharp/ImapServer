@@ -1,20 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿using ImapServer.Protocol;
+using OpenTelemetry.Trace;
+using System;
+using System.Diagnostics;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using ImapServer.Commands;
-using Serilog;
 
 namespace ImapServer
 {
     public class ImapSession : ImapSessionContext
     {
-        private static ImapCommandParser _parser = new ImapCommandParser();
-        
+        private static ImapCommandParser parser = new ImapCommandParser();
+
         public ImapSession(TcpClient client) : base(client)
         {
         }
@@ -27,9 +23,9 @@ namespace ImapServer
 
             try
             {
-                while (!String.IsNullOrEmpty(command = ReadLine()))
+                while (!cancellationToken.IsCancellationRequested && !string.IsNullOrEmpty(command = ReadLine()))
                 {
-                    var cmd = _parser.Parse(command);
+                    var cmd = parser.Parse(command);
 
                     if (cmd != null)
                     {
@@ -41,9 +37,10 @@ namespace ImapServer
                     }
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Log.Error(ex, "Error");
+                Activity.Current?.RecordException(ex);
+                Activity.Current?.SetStatus(Status.Error.WithDescription(ex.Message));
             }
 
             this.Dispose();

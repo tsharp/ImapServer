@@ -1,64 +1,71 @@
-﻿using System;
+﻿using OpenTelemetry.Trace;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Net.Sockets;
-using System.Net;
-using System.IO;
-using Serilog;
 
 namespace ImapServer
 {
     public class ImapServer
     {
-        private TcpListener _imapListener;
-        private ImapCommandParser _parser = new ImapCommandParser();
+        private static readonly ActivitySource ImapServerActivitySource = new ActivitySource("DarkSpace.ImapServer");
+
+        private TcpListener imapListener;
+        private ImapCommandParser parser = new ImapCommandParser();
 
         public int Port
         {
             get
             {
-                return ((IPEndPoint)_imapListener.LocalEndpoint).Port;
+                return ((IPEndPoint)imapListener.LocalEndpoint).Port;
             }
         }
 
         public ImapServer(int port = 143)
         {
             IPAddress localAddr = IPAddress.Parse("127.0.0.1");
-            _imapListener = new TcpListener(localAddr, port);
-
-            Log.Logger = new LoggerConfiguration()
-                .WriteTo.LiterateConsole()
-                .MinimumLevel.Verbose()
-                .CreateLogger();
+            imapListener = new TcpListener(localAddr, port);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
             var task = new Task(() =>
             {
-                try
+                using (var activity = ImapServerActivitySource.StartActivity("DarkSpace.ImapServer"))
                 {
-                    _imapListener.Start();
+                    activity.Start();
 
-                    // Enter the listening loop.
-                    while (true)
+                    try
                     {
-                        // Console.Write("Waiting for a connection... ");
+                        imapListener.Start();
 
-                        // Perform a blocking call to accept requests.
-                        // You could also user server.AcceptSocket() here.
-                        TcpClient client = _imapListener.AcceptTcpClient();
-                        new Thread(() => HandleClient(client)).Start();
+                        // Enter the listening loop.
+                        while (true)
+                        {
+                            // Console.Write("Waiting for a connection... ");
+
+                            // Perform a blocking call to accept requests.
+                            // You could also user server.AcceptSocket() here.
+                            var clientTask = imapListener.AcceptTcpClientAsync();
+                            clientTask.Wait(cancellationToken);
+                            new Thread(() => HandleClient(clientTask.Result, cancellationToken)).Start();
+                        }
                     }
-                }
-                catch (SocketException e)
-                {
-                    Log.Logger.Fatal("SocketException: {exception}", e);
-                }
-                finally
-                {
-                    // Stop listening for new clients.
-                    _imapListener.Stop();
+                    catch (SocketException ex)
+                    {
+                        activity.RecordException(ex);
+                        activity.SetStatus(Status.Error.WithDescription(ex.Message));
+                    }
+                    finally
+                    {
+                        // Stop listening for new clients.
+                        imapListener.Stop();
+                    }
+
+                    activity.Stop();
                 }
 
             }, cancellationToken);
@@ -68,22 +75,63 @@ namespace ImapServer
             return task;
         }
 
-        private void HandleClient(TcpClient client)
+        private void HandleClient(TcpClient client, CancellationToken cancellationToken)
         {
-            var session = new ImapSession(client);
-            session.Sent += Session_Sent;
-            session.Recieved += Session_Recieved;
-            session.HandleSession(CancellationToken.None);
+            using (var activity = ImapServerActivitySource.StartActivity("ImapServer.Session", ActivityKind.Server))
+            {
+                try
+                {
+                    var session = new ImapSession(client);
+                    activity.SetTag("context.id", session.ContextId);
+                    session.Sent += Session_Sent;
+                    session.Recieved += Session_Recieved;
+                    session.HandleSession(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    throw;
+                }
+                finally
+                {
+                    client.Close();
+                    client.Dispose();
+                }
+            }
         }
 
         private void Session_Recieved(object sender, string e)
         {
-            Log.Logger.Verbose("[{contextId}] Recieved: {data}", ((ImapSessionContext)sender).ContextId, e);
+            Console.WriteLine("Recieved ...");
+            Activity.Current?.AddEvent(new ActivityEvent(
+                "log",
+                DateTime.UtcNow,
+                new ActivityTagsCollection(
+                    new Dictionary<string, object>
+                    {
+                        { "log.severity", "verbose" },
+                        { "log.message", $"[{((ImapSessionContext)sender).ContextId}] Recieved: {e}" }
+                    }
+                )
+            ));
+
+            //Log.Logger.Verbose("[{contextId}] Recieved: {data}", ((ImapSessionContext)sender).ContextId, e);
         }
 
         private void Session_Sent(object sender, string e)
         {
-            Log.Logger.Verbose("[{contextId}] Sent: {data}", ((ImapSessionContext)sender).ContextId, e);
+            Console.WriteLine("Data Sent ...");
+            Activity.Current?.AddEvent(new ActivityEvent(
+                "log",
+                DateTime.UtcNow,
+                new ActivityTagsCollection(
+                    new Dictionary<string, object>
+                    {
+                        { "log.severity", "verbose" },
+                        { "log.message", $"[{((ImapSessionContext)sender).ContextId}] Sent: {e}" }
+                    }
+                )
+            ));
         }
     }
 }

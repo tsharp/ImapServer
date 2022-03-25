@@ -120,7 +120,9 @@ namespace ImapServer
         public string ReadLine()
         {
             var reader = new StreamReader(_clientStream, Encoding.UTF8, true, DefaultBufferSize, true) { };
-            string recieved = reader.ReadLine();
+            var task = reader.ReadLineAsync();
+            task.Wait(5000);
+            string recieved = task.Result;
             OnRecieved(recieved);
             return recieved;
         }
