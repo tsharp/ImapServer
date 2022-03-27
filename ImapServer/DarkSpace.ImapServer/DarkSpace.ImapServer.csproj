@@ -5,8 +5,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="3.1.23" />
     <PackageReference Include="OpenTelemetry" Version="1.1.0" />
     <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DarkSpace.MailService.Abstractions\DarkSpace.MailService.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

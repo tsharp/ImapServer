@@ -1,11 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27004.2005
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImapServer", "ImapServer\ImapServer.csproj", "{27DAE790-0C93-4957-8ED0-8C56B6D19392}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ImapServer.CoreConsole", "ImapServer.CoreConsole\ImapServer.CoreConsole.csproj", "{FC53046D-FD82-4268-89F1-4635DF9C20FC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImapServer.CoreConsole", "ImapServer.CoreConsole\ImapServer.CoreConsole.csproj", "{FC53046D-FD82-4268-89F1-4635DF9C20FC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DarkSpace.ImapServer", "DarkSpace.ImapServer\DarkSpace.ImapServer.csproj", "{017157C5-EB09-4756-863F-3800996DA0E9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DarkSpace.MailService", "DarkSpace.MailService\DarkSpace.MailService.csproj", "{C672590F-9CAE-4BDA-BE53-7D369936797E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DarkSpace.MailService.Abstractions", "DarkSpace.MailService.Abstractions\DarkSpace.MailService.Abstractions.csproj", "{81E17998-DB16-470A-99BD-EA498F97BECE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,14 +17,22 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{27DAE790-0C93-4957-8ED0-8C56B6D19392}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{27DAE790-0C93-4957-8ED0-8C56B6D19392}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{27DAE790-0C93-4957-8ED0-8C56B6D19392}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{27DAE790-0C93-4957-8ED0-8C56B6D19392}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FC53046D-FD82-4268-89F1-4635DF9C20FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FC53046D-FD82-4268-89F1-4635DF9C20FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FC53046D-FD82-4268-89F1-4635DF9C20FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FC53046D-FD82-4268-89F1-4635DF9C20FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{017157C5-EB09-4756-863F-3800996DA0E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{017157C5-EB09-4756-863F-3800996DA0E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{017157C5-EB09-4756-863F-3800996DA0E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{017157C5-EB09-4756-863F-3800996DA0E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C672590F-9CAE-4BDA-BE53-7D369936797E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C672590F-9CAE-4BDA-BE53-7D369936797E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C672590F-9CAE-4BDA-BE53-7D369936797E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C672590F-9CAE-4BDA-BE53-7D369936797E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{81E17998-DB16-470A-99BD-EA498F97BECE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{81E17998-DB16-470A-99BD-EA498F97BECE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{81E17998-DB16-470A-99BD-EA498F97BECE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{81E17998-DB16-470A-99BD-EA498F97BECE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

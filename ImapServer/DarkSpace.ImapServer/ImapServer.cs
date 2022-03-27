@@ -1,4 +1,8 @@
-﻿using OpenTelemetry.Trace;
+﻿using DarkSpace.ImapServer.Core;
+using DarkSpace.MailService.Abstractions;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,14 +11,14 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ImapServer
+namespace DarkSpace.ImapServer
 {
-    public class ImapServer
+    public class ImapMailService : IHostedService
     {
         private static readonly ActivitySource ImapServerActivitySource = new ActivitySource("DarkSpace.ImapServer");
-
         private TcpListener imapListener;
-        private ImapCommandParser parser = new ImapCommandParser();
+        private IMailService mailService;
+        private Task serverTask;
 
         public int Port
         {
@@ -24,15 +28,31 @@ namespace ImapServer
             }
         }
 
-        public ImapServer(int port = 143)
+        public ImapMailService(IMailService mailService, IOptions<ImapMailServiceSettings> options)
         {
-            IPAddress localAddr = IPAddress.Parse("127.0.0.1");
-            imapListener = new TcpListener(localAddr, port);
+            this.mailService = mailService;
+            var settings = options.Value;
+            IPAddress allIpv4Assigned = IPAddress.Parse(settings.IpAddress);
+            imapListener = new TcpListener(allIpv4Assigned, settings.Port);
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        //public ImapMailService(IMailService mailService, int port = 143)
+        //{
+        //    this.mailService = mailService;
+        //    IPAddress localAddr = IPAddress.Parse("127.0.0.1");
+        //    imapListener = new TcpListener(localAddr, port);
+        //}
+
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            var task = new Task(() =>
+            await Task.CompletedTask;
+
+            if(serverTask != null)
+            {
+                return;
+            }
+
+            serverTask = Task.Run(() =>
             {
                 using (var activity = ImapServerActivitySource.StartActivity("DarkSpace.ImapServer"))
                 {
@@ -51,7 +71,7 @@ namespace ImapServer
                             // You could also user server.AcceptSocket() here.
                             var clientTask = imapListener.AcceptTcpClientAsync();
                             clientTask.Wait(cancellationToken);
-                            new Thread(() => HandleClient(clientTask.Result, cancellationToken)).Start();
+                            Task.Run(() => HandleClient(clientTask.Result, cancellationToken), cancellationToken);
                         }
                     }
                     catch (SocketException ex)
@@ -69,10 +89,11 @@ namespace ImapServer
                 }
 
             }, cancellationToken);
+        }
 
-            task.Start();
-
-            return task;
+        public async Task StopAsync(CancellationToken cancellationToken)
+        {
+            await Task.CompletedTask;
         }
 
         private void HandleClient(TcpClient client, CancellationToken cancellationToken)
@@ -81,7 +102,7 @@ namespace ImapServer
             {
                 try
                 {
-                    var session = new ImapSession(client);
+                    var session = new ImapSession(client, mailService);
                     activity.SetTag("context.id", session.ContextId);
                     session.Sent += Session_Sent;
                     session.Recieved += Session_Recieved;
@@ -102,7 +123,9 @@ namespace ImapServer
 
         private void Session_Recieved(object sender, string e)
         {
-            Console.WriteLine("Recieved ...");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"Recieved: {e}");
+            Console.ForegroundColor = ConsoleColor.White;
             Activity.Current?.AddEvent(new ActivityEvent(
                 "log",
                 DateTime.UtcNow,
@@ -120,7 +143,10 @@ namespace ImapServer
 
         private void Session_Sent(object sender, string e)
         {
-            Console.WriteLine("Data Sent ...");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Sent: {e}");
+            Console.ForegroundColor = ConsoleColor.White;
+
             Activity.Current?.AddEvent(new ActivityEvent(
                 "log",
                 DateTime.UtcNow,

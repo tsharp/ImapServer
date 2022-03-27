@@ -4,9 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using DarkSpace.MailService.Abstractions;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
@@ -16,10 +18,42 @@ using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 
-namespace ImapServer
+namespace DarkSpace.ImapServer.Core
 {
     public class ImapSessionContext : IDisposable
     {
+        private readonly IMailService mailService;
+        X509Certificate2 certificate = new X509Certificate2();
+        public const int DefaultBufferSize = 1024;
+        private int sendCount = 0;
+
+        private readonly TcpClient client;
+        private Stream clientStrem;
+        private ClaimsPrincipal principal = new ClaimsPrincipal();
+
+        public readonly Guid ContextId = Guid.NewGuid();
+
+        public bool SslEnabled { get; internal set; } = false;
+
+        public event EventHandler<string> Sent;
+        public event EventHandler<string> Recieved;
+
+        public IMailService MailService => mailService;
+        public ClaimsPrincipal Principal => principal;
+
+        public bool AuthenticateUser(string userName, string password)
+        {
+            try
+            {
+                this.principal = mailService.AuthenticateUser(userName, password);
+            }
+            catch
+            {
+            }
+
+            return principal.Identity.IsAuthenticated;
+        }
+
         private static X509Certificate2 ConvertToWindows(Org.BouncyCastle.X509.X509Certificate newCert, AsymmetricCipherKeyPair kp)
         {
             var tempStorePwd = "FlyingGoats4545"; // RandomGenerators.GetRandomString(50, 75);
@@ -90,60 +124,56 @@ namespace ImapServer
             // var cert = new X509Certificate2(DotNetUtilities.ToX509Certificate(newCert));
         }
 
-        X509Certificate2 certificate = new X509Certificate2();
-        public const int DefaultBufferSize = 1024;
-
-        private readonly TcpClient _client;
-        private Stream _clientStream;
-        
-        public readonly Guid ContextId = Guid.NewGuid();
-
-        public bool SslEnabled { get; internal set; } = false;
-
-        public event EventHandler<string> Sent;
-        public event EventHandler<string> Recieved;
-
-        public ImapSessionContext(TcpClient client)
+        public ImapSessionContext(TcpClient client, IMailService mailService)
         {
-            _client = client;
-            _clientStream = _client.GetStream();
+            this.mailService = mailService;
+            this.client = client;
+            clientStrem = this.client.GetStream();
         }
 
         public void WriteLine(string data)
         {
-            var writer = new StreamWriter(_clientStream, Encoding.ASCII, DefaultBufferSize, true) { AutoFlush = true, NewLine = "\r\n" };
-            writer.WriteLine(data);
-            writer.Flush();
-            OnSent(data);
+            var content = data.Replace("{sendCount}", sendCount.ToString());
+
+            using (var writer = new StreamWriter(clientStrem, Encoding.ASCII, DefaultBufferSize, true) { AutoFlush = true, NewLine = "\r\n" })
+            {
+                writer.WriteLine(content);
+                writer.Flush();
+            }
+
+            OnSent(content);
         }
 
         public string ReadLine()
         {
-            var reader = new StreamReader(_clientStream, Encoding.UTF8, true, DefaultBufferSize, true) { };
-            var task = reader.ReadLineAsync();
-            task.Wait(5000);
-            string recieved = task.Result;
-            OnRecieved(recieved);
-            return recieved;
+            using (var reader = new StreamReader(clientStrem, Encoding.UTF8, true, DefaultBufferSize, true) { })
+            {
+                var task = reader.ReadLineAsync();
+                task.Wait(5000);
+                string recieved = task.Result;
+                OnRecieved(recieved);
+                return recieved;
+            }
         }
 
         public void Dispose()
         {
             // TODO: Test reader/writer memory leaks
-            _clientStream.Dispose();
-            _client.Close();
+            clientStrem.Dispose();
+            client.Close();
         }
 
         public async Task UpgradeToSsl()
         {
-            SslStream sslStream = new SslStream(_clientStream, true);
+            SslStream sslStream = new SslStream(clientStrem, true);
             await sslStream.AuthenticateAsServerAsync(GenerateCertificate("NewCert"), false, System.Security.Authentication.SslProtocols.Tls12, false);
-            _clientStream = sslStream;
+            clientStrem = sslStream;
             SslEnabled = true;
         }
 
         protected virtual void OnSent(string command)
         {
+            sendCount++;
             Sent?.Invoke(this, command);
         }
 

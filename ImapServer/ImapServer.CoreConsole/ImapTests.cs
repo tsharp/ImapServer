@@ -44,17 +44,19 @@ namespace MailKit.Examples
 
                 client.Authenticate("username", "password");
 
+                client.GetFolders(new FolderNamespace('/', "Inbox"));
+
                 client.Inbox.Open(FolderAccess.ReadOnly);
 
-                var uids = client.Inbox.Search(SearchQuery.All);
+                //var uids = client.Inbox.Search(SearchQuery.All);
 
-                foreach (var uid in uids)
-                {
-                    var message = client.Inbox.GetMessage(uid);
+                //foreach (var uid in uids)
+                //{
+                //    var message = client.Inbox.GetMessage(uid);
 
-                    // write the message to a file
-                    message.WriteTo(string.Format("{0}.eml", uid));
-                }
+                //    // write the message to a file
+                //    message.WriteTo(string.Format("{0}.eml", uid));
+                //}
 
                 client.Disconnect(true);
             }

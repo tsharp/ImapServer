@@ -1,17 +1,20 @@
-﻿using MailKit.Examples;
+﻿using DarkSpace.MailService.Abstractions;
+using MailKit.Examples;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OpenTelemetry;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using System;
 using System.Threading;
 
-namespace ImapServer.CoreConsole
+namespace DarkSpace.ImapServer.CoreConsole
 {
     class Program
     {
         static void Main(string[] args)
         {
-            using (var tracerProvider = Sdk.CreateTracerProviderBuilder()
+            using (TracerProvider tracerProvider = Sdk.CreateTracerProviderBuilder()
                 .AddSource("DarkSpace.ImapServer")
                 .SetResourceBuilder(
                     ResourceBuilder.CreateDefault()
@@ -19,26 +22,22 @@ namespace ImapServer.CoreConsole
                 .AddConsoleExporter()
                 .Build())
             {
-                var cancellationTokenSource = new CancellationTokenSource();
-                
-                ImapServer server = new ImapServer();
-                var serverTask = server.StartAsync(cancellationTokenSource.Token);
-
-                while (true)
-                {
-                    tracerProvider.ForceFlush();
-
-                    try
+                Host.CreateDefaultBuilder(args)
+                    .ConfigureServices(services =>
                     {
-                        ImapExamples.DownloadMessages_v1();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                    }
+                        services.AddOptions();
+                        services.Configure<ImapMailServiceSettings>(settings =>
+                        {
+                            settings.Port = 143;
+                            settings.IpAddress = "127.0.0.1";
+                        });
 
-                    System.Threading.Thread.Sleep(1000);
-                }
+                        services.AddSingleton(tracerProvider);
+                        services.AddSingleton<IMailService, MailService.MailService>();
+                        services.AddHostedService<ImapMailService>();
+                    })
+                    .Build()
+                    .Run();
             }
         }
     }

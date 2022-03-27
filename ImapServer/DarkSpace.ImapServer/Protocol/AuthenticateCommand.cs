@@ -1,14 +1,17 @@
-﻿using System;
+﻿using DarkSpace.ImapServer.Core;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace ImapServer.Protocol
+namespace DarkSpace.ImapServer.Protocol
 {
     public class AuthenticateCommand : ImapCommand
     {
         public AuthenticateCommand() : base("AUTHENTICATE", 1)
         {
         }
+
+        protected override SessionState[] allowedStates => new[] { SessionState.NotAuthenticated };
 
         public override bool CanParse(string command)
         {
@@ -45,14 +48,14 @@ namespace ImapServer.Protocol
             return true;
         }
 
-        public override void Execute(ImapSessionContext context, params string[] args)
+        public override void Execute(ImapSession session, params string[] args)
         {
-            ImapCommand.Send(context, "+", string.Empty);
-            var credentials = context.ReadLine();
+            ImapCommand.Send(session, "+", string.Empty);
+            var credentials = session.ReadLine();
 
             if (credentials == "*" || string.IsNullOrWhiteSpace(credentials))
             {
-                ImapCommand.Send(context, "BAD", string.Empty);
+                ImapCommand.Send(session, "BAD", string.Empty);
             }
 
             var decodedBytes = Convert.FromBase64String(credentials);
@@ -60,7 +63,12 @@ namespace ImapServer.Protocol
             var userName = result[1];
             var password = result[2];
 
-            GenericCommand.Execute(context, "OK", "Success", args);
+            if (!session.AuthenticateUser(userName, password))
+            {
+                GenericCommand.Execute(session, "NO", "Failure", args);
+            }
+
+            GenericCommand.Execute(session, "OK", "Success", args);
         }
     }
 }
